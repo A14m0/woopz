@@ -29,9 +29,10 @@ int main(int argc, char **argv)
 	proc_id = atoi(argv[1]);
 
 	printf("[INFO] Targeting process ID: %d\n", proc_id);
-
+	printf("[INFO] On your go, commander... ");
 	getc(stdin);
-
+	
+	// open remote process with as much access as possible
 	HANDLE proc = OpenProcess(PROCESS_ALL_ACCESS, true, proc_id);
 
 	if (!proc) {
@@ -39,8 +40,8 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	// resolve address of kernel32's LoadLibraryA function in remote process
 	HMODULE hK32 = GetModuleHandle(L"kernel32.dll");
-
 	LPVOID pLoadLib = (LPVOID)GetProcAddress(hK32, "LoadLibraryA");
 
 	if (!pLoadLib) {
@@ -49,6 +50,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
+	// allocate space in the remote process to store our DLL's name
 	LPVOID lpSpace = (LPVOID)VirtualAllocEx(proc, NULL, strlen(dll_name), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	printf("[INFO] Loading string at address %p\n", lpSpace);
 
@@ -58,6 +60,7 @@ int main(int argc, char **argv)
 		return 4;
 	}
 
+	// write the DLL path to the remote process
 	if (!WriteProcessMemory(proc, lpSpace, dll_name, strlen(dll_name), NULL)) {
 		printf("[ERROR] Failed to write data to proc memory\n");
 		CloseHandle(proc);
@@ -74,6 +77,7 @@ int main(int argc, char **argv)
 		return 6;
 	}
 
+	// resume the thread
 	if (ResumeThread(hThread) == -1) {
 		printf("[ERROR] Failed to resume remote thread: %d\n", GetLastError());
 		CloseHandle(hThread);
@@ -81,7 +85,7 @@ int main(int argc, char **argv)
 		return 7;
 	}
 
-
+	// profit :)
 	Sleep(500);
 
 	// we're done here
